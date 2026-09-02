@@ -1,0 +1,9 @@
+services:
+  hotspot-auth:
+    build: .
+    container_name: hotspot-auth
+    restart: unless-stopped
+    network_mode: host   # แชร์ network กับเครื่องจริง เชื่อม 127.0.0.1:3306 (mysql)
+                          # และให้ nginx proxy_pass ไป 127.0.0.1:5000 ได้เหมือนเดิม
+    env_file:
+      - .env
