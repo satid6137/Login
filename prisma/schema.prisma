@@ -1,0 +1,60 @@
+// prisma/schema.prisma
+// ฐานข้อมูลสำหรับ Auth Broker + Admin Panel
+// (แยกจากฐานข้อมูล daloRADIUS — ตัวนั้นเข้าถึงผ่าน raw SQL ใน src/lib/radius.ts)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql" // เปลี่ยนเป็น postgresql ได้ถ้าต้องการ
+  url      = env("APP_DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ตั้งค่าระบบ (feature toggle) — มีแถวเดียวเสมอ (singleton, id = 1)
+// ─────────────────────────────────────────────
+model Settings {
+  id                Int      @id @default(1)
+  healthIdEnabled   Boolean  @default(false) // เปิด/ปิด Health ID login
+  providerIdEnabled Boolean  @default(false) // เปิด/ปิด Provider ID login
+  updatedAt         DateTime @updatedAt
+  updatedBy         String? // provider_id ของ admin ที่แก้ล่าสุด
+}
+
+// ─────────────────────────────────────────────
+// hcode ของหน่วยงานตนเอง (รพ./สอ. ที่ระบบนี้ดูแล) — ใช้เทียบกับ hcode ใน
+// profile ที่ได้จาก provider.id.th เพื่อตัดสิน tier 2 vs tier 3
+// ─────────────────────────────────────────────
+model OwnHcode {
+  id        Int      @id @default(autoincrement())
+  hcode     String   @unique
+  name      String? // ชื่อหน่วยงาน (คำอธิบายให้ admin อ่านง่าย)
+  createdAt DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+// รายชื่อ provider_id ที่ถือเป็น "admin" (tier 4)
+// ─────────────────────────────────────────────
+model AdminWhitelist {
+  id         Int      @id @default(autoincrement())
+  providerId String   @unique // provider_id จาก profile ของ provider.id.th
+  name       String? // ชื่อ-นามสกุล (คำอธิบายให้ admin อ่านง่าย)
+  addedBy    String?
+  createdAt  DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+// log การ login แต่ละครั้ง (ไว้ตรวจสอบ/debug และแสดงในหน้า admin)
+// ─────────────────────────────────────────────
+model LoginLog {
+  id         Int      @id @default(autoincrement())
+  loginWay   String // "health-id" | "provider-id"
+  providerId String? // provider_id (ถ้ามี)
+  hcode      String? // hcode จาก profile
+  tier       Int // 1-4
+  username   String // username ที่ถูกสร้าง/ใช้ใน RADIUS
+  ip         String?
+  mac        String?
+  createdAt  DateTime @default(now())
+}
